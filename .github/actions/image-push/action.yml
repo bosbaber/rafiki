@@ -11,6 +11,9 @@ inputs:
   is_release:
     description: "Set to true if this is a release, this will trigger the tagging of the parent versions."
     required: true
+  gh_token:
+    description: "GitHub token to use for authentication."
+    required: true
   
 runs:
   using: "composite"
@@ -30,7 +33,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.gh_token }}
     - name: Load image into Docker
       shell: bash
       run: |

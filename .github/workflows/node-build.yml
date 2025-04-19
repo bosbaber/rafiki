@@ -491,6 +491,7 @@ jobs:
           platform_name: ${{ matrix.platform.name }}
           version: ${{ needs.version-generator.outputs.version }}
           is_release: ${{ needs.version-generator.outputs.generateRelease }}
+          gh_token: ${{ secrets.GITHUB_TOKEN }}
   
   push-manifest:
     name: Push multi-arch manifest list
