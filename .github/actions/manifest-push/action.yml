@@ -31,6 +31,7 @@ runs:
         password: ${{ inputs.gh_token }}
     - name: Create manifest list with parent versions
       if: steps.hierarchy.outputs.has_hierarchy == 'true'
+      shell: bash
       run: |
         docker manifest create ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}:${{ inputs.version }} \
         --amend ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-amd64:${{ inputs.version }} \
@@ -45,15 +46,18 @@ runs:
         --amend ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-arm64:${{ steps.hierarchy.outputs.major_parent }}
     - name: Create manifest list without parent versions
       if: steps.hierarchy.outputs.has_hierarchy != 'true'
+      shell: bash
       run: |
         docker manifest create ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}:${{ inputs.version }} \
         --amend ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-amd64:${{ inputs.version }} \
         --amend ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-arm64:${{ inputs.version }}
     - name: Push manifest list
+      shell: bash
       run: |
         docker manifest push ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}:${{ inputs.version }}
     - name: Push manifests of parent versions
       if: steps.hierarchy.outputs.has_hierarchy == 'true'
+      shell: bash
       run: |
         docker manifest push ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}:${{ steps.hierarchy.outputs.minor_parent }}
         docker manifest push ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}:${{ steps.hierarchy.outputs.major_parent }}
