@@ -555,9 +555,11 @@ jobs:
         run: |
           docker manifest create ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-generator.outputs.version }} \
           --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-amd64:${{ needs.version-generator.outputs.version }} \
-          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-arm64:${{ needs.version-generator.outputs.version }} \
+          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-arm64:${{ needs.version-generator.outputs.version }}
+          docker manifest create ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-hierarchy.outputs.MINOR_PARENT }} \
           --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-amd64:${{ needs.version-hierarchy.outputs.MINOR_PARENT }} \
-          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-arm64:${{ needs.version-hierarchy.outputs.MINOR_PARENT }} \
+          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-arm64:${{ needs.version-hierarchy.outputs.MINOR_PARENT }}
+          docker manifest create ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-hierarchy.outputs.MAJOR_PARENT }} \
           --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-amd64:${{ needs.version-hierarchy.outputs.MAJOR_PARENT }} \
           --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-arm64:${{ needs.version-hierarchy.outputs.MAJOR_PARENT }}
       - name: Create manifest list without parent versions
