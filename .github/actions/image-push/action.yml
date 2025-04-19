@@ -53,6 +53,11 @@ runs:
       shell: bash
       run: |   
         docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --push \
+          -t ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
+
     - name: Tag and push parent versions
       shell: bash
       if: ${{ inputs.has_hierarchy == 'true' }}
@@ -61,8 +66,8 @@ runs:
         docker buildx build \
           --platform linux/amd64,linux/arm64 \
           --push \
-          -t ghcr.io/bosbaber/rafiki-auth:${{ inputs.version }} \
-          -t ghcr.io/bosbaber/rafiki-auth:${{ inputs.minor_parent }} \
-          -t ghcr.io/bosbaber/rafiki-auth:${{ inputs.major_parent }} \
+          -t ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} \
+          -t ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.minor_parent }} \
+          -t ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.major_parent }} \
 
         
