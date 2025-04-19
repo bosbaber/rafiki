@@ -49,6 +49,7 @@ runs:
       shell: bash
       run: docker images
     - name: Push to registry
+      if: ${{ inputs.has_hierarchy != 'true' }}
       shell: bash
       run: |   
         docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
@@ -56,12 +57,12 @@ runs:
       shell: bash
       if: ${{ inputs.has_hierarchy == 'true' }}
       run: |
-        minor_parent=${{ inputs.minor_parent}}
-        major_parent=${{ inputs.major_parent}}
+        echo "Tagging parent versions with ${{ inputs.version }}, ${{ inputs.minor_parent }} and ${{ inputs.major_parent }}"
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --push \
+          -t ghcr.io/bosbaber/rafiki-auth:${{ inputs.version }} \
+          -t ghcr.io/bosbaber/rafiki-auth:${{ inputs.minor_parent }} \
+          -t ghcr.io/bosbaber/rafiki-auth:${{ inputs.major_parent }} \
 
-        echo "Tagging image with $minor_parent and $major_parent"
-        docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${minor_parent}
-        docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${major_parent}
-        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${minor_parent}
-        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${major_parent}
         
