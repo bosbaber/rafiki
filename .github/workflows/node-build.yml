@@ -466,10 +466,47 @@ jobs:
         run: |
           docker images
           /tmp/trivy image --db-repository ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db --java-db-repository ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db --ignore-unfixed --format table --vuln-type os,library --exit-code 1 --severity HIGH --input /tmp/${{ github.sha }}-${{ matrix.package }}-${{ matrix.platform.name }}-${{ needs.version-generator.outputs.version }}.tar
-  
+
+  version-hierarchy:
+    name: Version Hierarchy
+    needs: [version-generator]
+    outputs:
+      has_hierarchy: ${{ steps.version-hierarchy.outputs.HAS_HIERARCHY }}
+      major_parent: ${{ steps.version-hierarchy.outputs.MAJOR_PARENT }}
+      minor_parent: ${{ steps.version-hierarchy.outputs.MINOR_PARENT }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create a version hierarchy
+        id: version-hierarchy
+        run: |
+          if [ "${{ needs.version-generator.outputs.generateRelease }}" = 'true' ]; then
+            echo "HAS_HIERARCHY=true" >> $GITHUB_OUTPUT
+          else
+            echo "HAS_HIERARCHY=false" >> $GITHUB_OUTPUT
+            echo "MAJOR_PARENT=" >> $GITHUB_OUTPUT
+            echo "MINOR_PARENT=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          major_num=$(echo "${{ needs.version-generator.outputs.version }}" | cut -d '.' -f 1 | cut -d 'v' -f 2)
+          minor_num=$(echo "${{ needs.version-generator.outputs.version }}" | cut -d '.' -f 2)
+          pre_release=$(echo "${{ needs.version-generator.outputs.version }}" | grep -oP '(?<=-).*' || echo "")
+
+          minor_label="v${major_num}.${minor_num}"
+          if [ -n "$pre_release" ]; then
+            parent_label="v${major_num}.${minor_num}-${pre_release}"
+          fi
+
+          major_label="v${major_num}"
+          if [ -n "$pre_release" ]; then
+            major_label="v${major_num}-${pre_release}"
+          fi
+          echo "MAJOR_PARENT=$major_label" >> $GITHUB_OUTPUT
+          echo "MINOR_PARENT=$minor_label" >> $GITHUB_OUTPUT
+
   push:
     name: Push to registry
-    needs: [version-generator, docker-grype, docker-trivy, version-generator, node-build]
+    needs: [version-generator, docker-grype, docker-trivy, version-hierarchy, node-build]
     runs-on: ubuntu-latest
     if: needs.version-generator.outputs.dockerPush == 'true'
     strategy:
@@ -490,12 +527,14 @@ jobs:
           package: ${{ matrix.package }}
           platform_name: ${{ matrix.platform.name }}
           version: ${{ needs.version-generator.outputs.version }}
-          is_release: ${{ needs.version-generator.outputs.generateRelease }}
+          minor_parent: ${{ needs.version-hierarchy.outputs.MINOR_PARENT }}
+          major_parent: ${{ needs.version-hierarchy.outputs.MAJOR_PARENT }}
+          has_hierarchy: ${{ needs.version-hierarchy.outputs.has_hierarchy }}
           gh_token: ${{ secrets.GITHUB_TOKEN }}
   
   push-manifest:
     name: Push multi-arch manifest list
-    needs: [version-generator, push]
+    needs: [version-generator,version-hierarchy, push]
     runs-on: ubuntu-latest
     if: needs.version-generator.outputs.dockerPush == 'true'
     strategy:
@@ -511,7 +550,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create manifest list  
+      - name: Create manifest list with parent versions
+        if: needs.version-hierarchy.outputs.has_hierarchy == 'true'
+        run: |
+          docker manifest create ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-generator.outputs.version }} \
+          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-amd64:${{ needs.version-generator.outputs.version }} \
+          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-arm64:${{ needs.version-generator.outputs.version }} \
+          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-hierarchy.outputs.MINOR_PARENT }} \
+          --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-hierarchy.outputs.MAJOR_PARENT }}
+      - name: Create manifest list without parent versions
+        if: needs.version-hierarchy.outputs.has_hierarchy == 'false'
         run: |
           docker manifest create ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}:${{ needs.version-generator.outputs.version }} \
           --amend ghcr.io/${{ github.repository_owner }}/rafiki-${{ matrix.package }}-amd64:${{ needs.version-generator.outputs.version }} \

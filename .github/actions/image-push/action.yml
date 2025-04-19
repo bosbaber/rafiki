@@ -8,11 +8,18 @@ inputs:
     required: true
   version:
     required: true
-  is_release:
-    description: "Set to true if this is a release, this will trigger the tagging of the parent versions."
-    required: true
   gh_token:
     description: "GitHub token to use for authentication."
+    required: true
+  has_hierarchy:
+    description: "Set to true if the image has a hierarchy, this will trigger the tagging of the parent versions."
+    required: true
+    default: false
+  minor_parent:
+    description: "Set to true if the image has a minor parent, this will trigger the tagging of the parent versions."
+    required: true
+  major_parent:
+    description: "Set to true if the image has a major parent, this will trigger the tagging of the parent versions."
     required: true
   
 runs:
@@ -47,22 +54,10 @@ runs:
         docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
     - name: Tag and push parent versions
       shell: bash
-      if: ${{ inputs.is_release == 'true' }}
+      if: ${{ inputs.has_hierarchy == 'true' }}
       run: |
-        # Versions will typically be in the form of v1.1.1-alpha
-        major_num=$(echo ${{ inputs.version }} | cut -d '.' -f 1 | cut -d 'v' -f 2)
-        minor_num=$(echo ${{ inputs.version }} | cut -d '.' -f 2)
-        pre_release=$(echo ${{ inputs.version }} | grep -oP '(?<=-).*' || echo "")
-
-        minor_parent="v${major_num}.${minor_num}"
-        if [ -n "$pre_release" ]; then
-          minor_parent="v${major_num}.${minor_num}-${pre_release}"
-        fi
-
-        major_parent="v${major_num}"
-        if [ -n "$pre_release" ]; then
-          major_parent="v${major_parent}-${pre_release}"
-        fi
+        minor_parent=${{ inputs.minor_parent}}
+        major_parent=${{ inputs.major_parent}}
 
         echo "Tagging image with $minor_parent and $major_parent"
         docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${minor_parent}
