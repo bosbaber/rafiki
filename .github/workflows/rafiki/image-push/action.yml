@@ -1,0 +1,72 @@
+name: "Version aware image pusher"
+description: "Will re-tag the docker image to create images for parent versions. For example, if the image is tagged 1.2.3, it will create a tag for 1.2 and 1.0 as well."
+
+inputs:
+  package:
+    required: true
+  platform_name:
+    required: true
+  version:
+    required: true
+  is_release:
+    description: "Set to true if this is a release, this will trigger the tagging of the parent versions."
+    required: true
+  
+runs:
+  using: "composite"
+  steps:
+    - name: Fetch docker image from cache
+      uses: actions/cache/restore@v4
+      with:
+        path: /tmp/${{ github.sha }}-${{ inputs.package }}-${{ inputs.platform_name }}-${{ inputs.version }}.tar
+        key: ${{ github.sha }}-${{ inputs.package }}-${{ inputs.platform_name }}-${{ inputs.version }}
+        fail-on-cache-miss: true
+    - name: Set up QEMU
+      shell: bash
+      uses: docker/setup-qemu-action@v3
+    - name: Set up Docker Buildx
+      shell: bash
+      uses: docker/setup-buildx-action@v3
+    - name: Login to GHCR
+      shell: bash
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Load image into Docker
+      shell: bash
+      run: |
+        docker load --input /tmp/${{ github.sha }}-${{ inputs.package }}-${{ inputs.platform_name }}-${{ inputs.version }}.tar
+    - name: List docker images
+      shell: bash
+      run: docker images
+    - name: Push to registry
+      shell: bash
+      run: |   
+        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
+    - name: Tag and push parent versions
+      shell: bash
+      if: ${{ inputs.is_release == 'true' }}
+      run: |
+        # Versions will typically be in the form of v1.1.1-alpha
+        major_num=$(echo ${{ inputs.version }} | cut -d '.' -f 1 | cut -d 'v' -f 2)
+        minor_num=$(echo ${{ inputs.version }} | cut -d '.' -f 2)
+        pre_release=$(echo ${{ inputs.version }} | grep -oP '(?<=-).*' || echo "")
+
+        minor_parent="v${major_num}.${minor_num}"
+        if [ -n "$pre_release" ]; then
+          minor_parent="v${major_num}.${minor_num}-${pre_release}"
+        fi
+
+        major_parent="v${major_num}"
+        if [ -n "$pre_release" ]; then
+          major_parent="v${major_parent}-${pre_release}"
+        fi
+
+        echo "Tagging image with $minor_parent and $major_parent"
+        docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${minor_parent}
+        docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${major_parent}
+        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${minor_parent}
+        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${major_parent}
+        
