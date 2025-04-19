@@ -1,30 +1,31 @@
-name: "Version aware image pusher"
+name: "Version hierarchy image pusher"
 description: "Will re-tag the docker image to create images for parent versions. For example, if the image is tagged 1.2.3, it will create a tag for 1.2 and 1.0 as well."
 
 inputs:
+  app_name:
+    description: "The name of the application."
+    required: true
   package:
     required: true
   platform_name:
     required: true
-  version:
-    required: true
   gh_token:
     description: "GitHub token to use for authentication."
     required: true
-  has_hierarchy:
-    description: "Set to true if the image has a hierarchy, this will trigger the tagging of the parent versions."
+  version:
     required: true
-    default: false
-  minor_parent:
-    description: "Set to true if the image has a minor parent, this will trigger the tagging of the parent versions."
-    required: true
-  major_parent:
-    description: "Set to true if the image has a major parent, this will trigger the tagging of the parent versions."
-    required: true
+    description: "Version we are tagging as, for example v1.2.3 or v1.2.3-rc1"
+  
   
 runs:
   using: "composite"
   steps:
+    - name: Calculate version hierarchy
+      id: hierarchy
+      uses: ./.github/actions/parent-versions
+      with:
+        version: ${{ inputs.version }}
+        generateRelease: true
     - name: Fetch docker image from cache
       uses: actions/cache/restore@v4
       with:
@@ -49,17 +50,18 @@ runs:
       shell: bash
       run: docker images
     - name: Push to registry
-      if: ${{ inputs.has_hierarchy != 'true' }}
       shell: bash
-      run: |   
+      run: |
+        echo "Pushing image to registry"
+        docker push ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
     - name: Tag and push parent versions
       shell: bash
-      if: ${{ inputs.has_hierarchy == 'true' }}
+      if: ${{ steps.hierarchy.outputs.has_hierarchy == 'true' }}
       run: |
-        echo "Tagging parent versions with ${{ inputs.version }}, ${{ inputs.minor_parent }} and ${{ inputs.major_parent }}"
-        docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.major_parent }}
-        docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.minor_parent }}
-        echo "Pushing tagged images to registry"
-        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}        
-        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.major_parent }}
-        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.minor_parent }}
+        echo "Tagging parent versions with ${{ inputs.version }}, ${{ steps.hierarchy.outputs.minor_parent }} and ${{ steps.hierarchy.outputs.major_parent }}"
+        docker tag ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name}}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ steps.hierarchy.outputs.major_parent }}
+        docker tag ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name}}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ steps.hierarchy.outputs.minor_parent }}
+
+        echo "Pushing parent tagged images to registry"
+        docker push ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ steps.hierarchy.outputs.major_parent }}
+        docker push ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ steps.hierarchy.outputs.minor_parent }}
