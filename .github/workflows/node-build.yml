@@ -487,6 +487,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/image-push
         with:
+          app_name: rafiki
           package: ${{ matrix.package }}
           platform_name: ${{ matrix.platform.name }}
           version: ${{ needs.version-generator.outputs.version }}
