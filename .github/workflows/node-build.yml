@@ -1,5 +1,5 @@
 name: Node Build
-# Test
+
 on:
   workflow_dispatch:
   schedule:
@@ -484,7 +484,8 @@ jobs:
           - backend
           - frontend
     steps:
-      - uses: workflows/rafiki/image-push
+      - uses: actions/checkout@v4
+      - uses: .github/workflows/rafiki/image-push
         with:
           package: ${{ matrix.package }}
           platform_name: ${{ matrix.platform.name }}
