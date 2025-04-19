@@ -52,8 +52,6 @@ runs:
       if: ${{ inputs.has_hierarchy != 'true' }}
       shell: bash
       run: |   
-        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
-
     - name: Tag and push parent versions
       shell: bash
       if: ${{ inputs.has_hierarchy == 'true' }}
@@ -62,5 +60,6 @@ runs:
         docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.major_parent }}
         docker tag ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }} ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.minor_parent }}
         echo "Pushing tagged images to registry"
+        docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}        
         docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.major_parent }}
         docker push ghcr.io/${{ github.repository_owner }}/rafiki-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.minor_parent }}
