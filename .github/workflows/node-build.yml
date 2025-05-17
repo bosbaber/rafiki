@@ -3,7 +3,7 @@ name: Node Build
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '0 * * * *'
+    - cron: '*/30 * * * *'
   pull_request:
     branches:
       - '**'
